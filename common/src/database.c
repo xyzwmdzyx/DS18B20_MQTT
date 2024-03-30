@@ -46,7 +46,7 @@ int databaseInit(const char *fname) {
     // database file already exist, just open it
     if( 0 == access(fname, F_OK) ) {
         if( SQLITE_OK != sqlite3_open(fname, &db) ) {
-            logError("open database file '%s' failure\n", fname);
+            logError("%s() failed: %s\n", __func__, strerror(errno));
             return -2;
         }
         logInfo("open database file '%s' success\n", fname);

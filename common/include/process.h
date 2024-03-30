@@ -28,8 +28,6 @@ typedef struct proc_signal
 
 typedef void* (*threadFunc)(void *thread_arg);
 
-extern proc_signal_t    g_signal;
-
 /* description: install default signal process functions */
 extern void installDefaultSignal(void);
 
@@ -108,3 +106,5 @@ extern int threadStart(pthread_t *thread_id, threadFunc thread_workbody, void *t
  *					$format: command args
  */
 extern void execSystemCmd(const char *format, ...);
+
+#endif

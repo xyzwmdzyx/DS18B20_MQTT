@@ -25,6 +25,8 @@
 #include "process.h"
 #include "logger.h"
 
+proc_signal_t    g_signal;
+
 /* description:     sighandler when process catch a signal
  * input args :  
  *                  $sig: signal whitch being catched by process
@@ -286,7 +288,7 @@ int checkDaemonRunning(const char *pidfile) {
             return 1;
         }
     }
-
+	// pid file does not exist, directly return 0
     return 0;
 }
 
@@ -384,7 +386,7 @@ int threadStart(pthread_t *thread_id, threadFunc thread_workbody, void *thread_a
         goto Cleanup;
     }
 
- CleanUp:
+ Cleanup:
     if( thread_id ) {
         if( rv ) {
             *thread_id = 0;

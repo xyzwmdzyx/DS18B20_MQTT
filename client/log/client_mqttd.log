@@ -1,0 +1,5 @@
+[2024-03-30 22:54:59.15][INFO][../common/src/logger.c 152]: log system(v1.0) start: filename: "./log/client_mqttd.log", loglevel: INFO, filemaxsize: 10KiB
+[2024-03-30 22:54:59.15][INFO][../common/src/process.c 67]: install default signal handler.
+[2024-03-30 22:54:59.15][INFO][./src/client.c 135]: program start running.
+[2024-03-30 22:54:59.15][INFO][../common/src/database.c 81]: create and init database file './data/client_data.db' success
+[2024-03-30 22:54:59.15][WARN][../common/src/database.c 89]: close sqlite database now
