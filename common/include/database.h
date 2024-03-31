@@ -16,6 +16,7 @@
 
 #include "sqlite3.h"
 
+#define DATABASE_VERSION       "v1.0"
 #define SQL_COMMAND_LEN        256
 
 /*	description:	init database system
@@ -23,7 +24,7 @@
  *					$fname: database file name
  * return value:    <0: failure   0: success
  */
-extern int databaseInit(const char *fname);
+extern int databaseInit(char *fname);
 
 
 /* description: terminate sqlite database */

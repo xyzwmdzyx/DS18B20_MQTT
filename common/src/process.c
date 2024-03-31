@@ -25,7 +25,8 @@
 #include "process.h"
 #include "logger.h"
 
-proc_signal_t    g_signal;
+proc_signal_t	g_signal = {0};
+
 
 /* description:     sighandler when process catch a signal
  * input args :  
@@ -64,7 +65,7 @@ void installDefaultSignal(void) {
 
     struct sigaction    sigact, sigign;
 
-    logInfo("install default signal handler.\n");
+    logInfo("install default signal handler\n");
 
     // initialize the catch signal structure
     sigemptyset(&sigact.sa_mask);
@@ -76,10 +77,10 @@ void installDefaultSignal(void) {
     sigign.sa_flags = 0;
     sigign.sa_handler = SIG_IGN;
 
-    sigaction(SIGTERM, &sigact, 0); // catch terminate signal "kill" command
-    sigaction(SIGINT,  &sigact, 0); // catch interrupt signal CTRL+C
-    sigaction(SIGSEGV, &sigact, 0); // catch segmentation faults
-    sigaction(SIGPIPE, &sigact, 0); // catch broken pipe
+    sigaction(SIGTERM, &sigact, NULL); // catch terminate signal 15
+    sigaction(SIGINT,  &sigact, NULL); // catch interrupt signal CTRL+C
+    sigaction(SIGSEGV, &sigact, NULL); // catch segmentation faults
+    sigaction(SIGPIPE, &sigact, NULL); // catch broken pipe
 }
 
 
@@ -210,7 +211,7 @@ int recordDaemonPid(const char *pidfile) {
         snprintf(pid, sizeof(pid), "%u\n", (unsigned)getpid());
         write(fd, pid, strlen(pid));
         close(fd);
-        logDebug("record PID<%u> to file %s.\n", getpid(), pidfile);
+        logDebug("record PID<%u> to file %s\n", getpid(), pidfile);
     }
     else {
         logError("cannot create %s: %s\n", pidfile, strerror(errno));
@@ -260,31 +261,31 @@ int checkDaemonRunning(const char *pidfile) {
     rv = stat(pidfile, &fStatBuf);
     // pidfile does exist
     if (0 == rv) {
-        logInfo("PID record file \"%s\" exist.\n", pidfile);
+        logInfo("PID record file \"%s\" exist\n", pidfile);
         pid = getDaemonPid(pidfile);
         // pid number does exsit, but we need to check if this process really running
         if(pid > 0) {
             // send signal to process gets reply, means this process really running
             if((rv = kill(pid, 0)) == 0) {
-                logInfo("process with PID[%d] seems running.\n", pid);
+                logInfo("process with PID[%d] seems running\n", pid);
                 return 1;
             }
             // send signal to process gets no reply, means this process dosen't running
             else {
-                logWarn("process with PID[%d] seems exit.\n", pid);
+                logWarn("process with PID[%d] seems exit\n", pid);
                 remove(pidfile);
                 return 0;
             }
         }
         // pid number is invalid
         else if (0 == pid) {
-            logWarn("can't read process PID form record file.\n");
+            logWarn("can't read process PID form record file\n");
             remove(pidfile);
             return 0;
         }
         // read pid from file "pidfile" failure
         else {
-            logError("read record file \"%s\" failure, maybe process still running.\n", pidfile);
+            logError("read record file \"%s\" failure, maybe process still running\n", pidfile);
             return 1;
         }
     }
@@ -308,7 +309,7 @@ int stopDaemonRunning(const char *pidfile) {
         return 0;
     }
 
-    logInfo("PID record file \"%s\" exist.\n", pidfile);
+    logInfo("PID record file \"%s\" exist\n", pidfile);
     pid = getDaemonPid(pidfile);
     // kill this process with signal SIGTERM until success
     if(pid > 0) {
@@ -332,10 +333,10 @@ int stopDaemonRunning(const char *pidfile) {
 int setDaemonRunning(const char *pidfile) {
 
     daemonize(0, 1);
-    logInfo("process running as daemon [PID:%d].\n", getpid());
+    logInfo("process running as daemon [PID:%d]\n", getpid());
 
     if( recordDaemonPid(pidfile) < 0 ) {
-        logError("record PID to file \"%s\" failure.\n", pidfile);
+        logError("record PID to file \"%s\" failure\n", pidfile);
         return -1;
     }
 

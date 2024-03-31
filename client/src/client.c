@@ -28,6 +28,7 @@
 
 #define PROG_VERSION               	"v1.0.0"
 #define DAEMON_PIDFILE             	"/tmp/.client_mqttd.pid"
+#define	SN_NUM						40
 
 // 打印命令行参数帮助信息
 static void printUsage(char *progname) {
@@ -50,6 +51,7 @@ int checkSampleTime(time_t *last_time, int interval);
 
 int main(int argc, char* argv[]) {
 
+	extern proc_signal_t	g_signal;
 	int						daemon = 1;
 	int						rv = -1;
 	
@@ -59,8 +61,7 @@ int main(int argc, char* argv[]) {
     int                     logsize = 10; // 日志文件最大为10K
     char					*dbfile = "./data/client_data.db";
     
-    char                    *hostname = NULL;
-    int                     port = 0;
+    char                    *broker = NULL;
     int                     readtime = 60; // 默认每60s上报一次
     
     time_t                  last_time = 0;
@@ -69,7 +70,7 @@ int main(int argc, char* argv[]) {
     char                    pack_buf[1024];
     int                     pack_bytes = 0;
     pack_info_t             pack_info;
-    packFunc             	pack_fuction = packetJsonData; // 使用JSON pack
+    packFunc             	pack_function = packetJsonData; // 使用JSON pack
 	
 	struct option           opts[] = {
                             {"broker", required_argument, NULL, 'b'},
@@ -85,7 +86,7 @@ int main(int argc, char* argv[]) {
 	while( (rv = getopt_long(argc, argv, "b:t:dvh", opts, NULL)) != -1 ) {
         switch(rv) {
             case 'b': // 设置代理主机名
-                hostname = optarg;
+                broker = optarg;
                 break;
 
             case 't': // 设置上报时间间隔
@@ -113,7 +114,7 @@ int main(int argc, char* argv[]) {
     }
     
     // 检查参数
-    if( !hostname || readtime <= 0 ) {
+    if( !broker || readtime <= 0 ) {
         printUsage(argv[0]);
         return 0;
     }
@@ -124,20 +125,44 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     
-    // 安装信号及其默认动作
-    installDefaultSignal();
-    
-    // 检查程序是否已经运行，如果没有，则将其丢到后台运行
-    //if( checkSetProgramRunning(daemon, DAEMON_PIDFILE) < 0 ) {
-    	//goto Cleanup;
-    //}
-
-    logInfo("program start running.\n");
-
     // 初始化数据库系统
     if( databaseInit(dbfile) < 0 ) {
         logError("Initial database system faliure, program will exit\n");
         return -2;
+    }
+    
+    // 安装信号及其默认动作
+    installDefaultSignal();
+    
+    // 检查程序是否已经运行，如果没有，则将其丢到后台运行
+    if( checkSetProgramRunning(daemon, DAEMON_PIDFILE) < 0 ) {
+    	goto Cleanup;
+    }
+    
+    // 当g_signal.stop != 1，则一直执行
+    while( !g_signal.stop ) {
+    	// 采样标志至0
+    	sample_flag = 0;
+    	// 如果到时间就读DS18B20的温度
+    	if( checkSampleTime(&last_time, readtime) ) {
+            logDebug("start sample DS18B20 termperature\n");
+
+            // 读取DS18B20的温度
+            if( (rv = ds18b20GetTemperature(&pack_info.temper)) < 0 ) {
+                logError("sample DS18B20 temperature failure, errcode = %d\n", rv);
+                continue;
+            }
+            logInfo("sample DS18B20 termperature success, temper = %.3f oC\n", pack_info.temper);
+
+            // 获取设备型号、当前时间
+            getDevid(pack_info.devid, DEVID_LEN, SN_NUM);
+            getTime(&pack_info.sample_time);
+
+            // 将数据打包成JSON格式
+            pack_bytes = pack_function(&pack_info, pack_buf, sizeof(pack_buf));
+            // 采样标志至1
+            sample_flag = 1;
+        }
     }
     
  Cleanup:
@@ -146,6 +171,19 @@ int main(int argc, char* argv[]) {
     logTerm();
 
     return 0;
-	
-	return 0;
+}
+
+int checkSampleTime(time_t *last_time, int interval) {
+
+    int                  need = 0;
+    time_t               now;
+
+    time(&now);
+	// 现在的时间 > 上次采样时间 + 时间间隔则该采样了   
+    if( now >= *last_time + interval ) {
+        need = 1;
+        *last_time = now;
+    }
+
+    return need;
 }

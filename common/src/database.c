@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 #include "database.h"
 #include "logger.h"
 
@@ -32,7 +33,7 @@ static sqlite3         *db = NULL;
  *					$fname: database file name
  * return value:    <0: failure   0: success
  */
-int databaseInit(const char *fname) {
+int databaseInit(char *fname) {
 
     char               sql[SQL_COMMAND_LEN] = {0};
     char               *errmsg = NULL;
@@ -46,16 +47,16 @@ int databaseInit(const char *fname) {
     // database file already exist, just open it
     if( 0 == access(fname, F_OK) ) {
         if( SQLITE_OK != sqlite3_open(fname, &db) ) {
-            logError("%s() failed: %s\n", __func__, strerror(errno));
+            logError("%s() failed: %s\n", __func__, sqlite3_errmsg(db));
             return -2;
         }
-        logInfo("open database file '%s' success\n", fname);
+        logInfo("database system(%s) start: filename: \"%s\"\n", DATABASE_VERSION, fname);
         return 0;
     }
 
     // database not exist, create and init it
     if( SQLITE_OK != sqlite3_open(fname, &db) ) {
-        logError("create database file '%s' failure\n", fname);
+        logError("%s() failed: %s\n", __func__, sqlite3_errmsg(db));
         return -2;
     }
 
@@ -78,7 +79,7 @@ int databaseInit(const char *fname) {
         return -3;
     }
 
-    logInfo("create and init database file '%s' success\n", fname);
+    logInfo("database system(%s) start: filename: \"%s\"\n", DATABASE_VERSION, fname);
     return 0;
 }
 

@@ -23,7 +23,7 @@
 typedef struct proc_signal
 {
     int       signal;
-    unsigned  stop;     /* 0: Not term  1: Stop  */
+    unsigned  stop;     // 0: continue running  1: stop running
 }proc_signal_t;
 
 typedef void* (*threadFunc)(void *thread_arg);
