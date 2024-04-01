@@ -65,8 +65,6 @@ static void logRollBack(void);
  */
 void logWrite(int level, const char *file, int line, const char *fmt, ...);
 
-void logDump(int level, const char *prompt, char *buf, size_t len);
-
 /* function: write log message into log file with different log level */
 #define logTrace(...) logWrite(LOG_TRACE, __FILE__, __LINE__, __VA_ARGS__)
 #define logDebug(...) logWrite(LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
