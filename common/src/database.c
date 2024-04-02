@@ -44,7 +44,7 @@ int databaseInit(char *fname) {
         return -1;
     }
 
-    // database file already exist, just open it
+    // database file already exist, then open it
     if( 0 == access(fname, F_OK) ) {
         if( SQLITE_OK != sqlite3_open(fname, &db) ) {
             logError("%s() failed: %s\n", __func__, sqlite3_errmsg(db));
@@ -54,7 +54,7 @@ int databaseInit(char *fname) {
         return 0;
     }
 
-    // database not exist, create and init it
+    // database not exist, then create and init it
     if( SQLITE_OK != sqlite3_open(fname, &db) ) {
         logError("%s() failed: %s\n", __func__, sqlite3_errmsg(db));
         return -2;
@@ -87,8 +87,8 @@ int databaseInit(char *fname) {
 /* description: terminate sqlite database */
 void databaseTerm(void) {
 
-    logWarn("close sqlite database now\n");
     sqlite3_close(db);
+    logWarn("close database success\n");
 
     return ;
 }
@@ -246,7 +246,7 @@ int databaseDelPacket(void) {
     }
     logWarn("delete first blob packet from database success\n");
 
-    // Vacuum the database
+    // vacuum database
     sqlite3_exec(db, "VACUUM;", NULL, 0, NULL);
 
     return 0;

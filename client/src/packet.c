@@ -43,20 +43,24 @@ int getDevid(char *devid, int size, int sn) {
 
 /*	description:	get sample time
  *	 input args:	
- *					$ptm : struct whitch store time information  
+ *					$sample_time : time information buffer
+ *					$size        : buffer size
  * return value:    <0: failure   0: success
  */
-int getTime(struct tm *ptm) {
-
+int getTime(char *sample_time, int size) {
+       
+    time_t 			t = time(NULL);
+    struct tm 		*tm = localtime(&t);
+    
     // check input args
-    if( !ptm ) {
-        logError("function %s() gets invalid input arugments\n", __func__);
-        return -1;
+    if( !sample_time || size < 0) {
+    	logError("function %s() gets invalid input arugments\n", __func__);
+    	return -1;
     }
-
-    time_t now = time(NULL);
-    localtime_r(&now, ptm);
-
+    
+    memset(sample_time, 0, size);
+    strftime(sample_time, size, "%Y-%m-%d %H:%M:%S", tm);
+    
     return 0;
 }
 
@@ -70,22 +74,14 @@ int getTime(struct tm *ptm) {
  */
 int packetSegmentData(pack_info_t *pack_info, char *pack_buf, int size) {
 
-    char            strtime[TIME_LEN] = {'\0'};
-    struct tm       *ptm;
-
     // check input args
     if( !pack_info || !pack_buf || size <= 0 ) {
         logError("function %s() gets invalid input arguments\n", __func__);
         return -1;
     }
-
-    ptm = &pack_info -> sample_time;
-    snprintf(strtime, sizeof(strtime), "%04d-%02d-%02d %02d:%02d:%02d",
-            ptm -> tm_year + 1900, ptm -> tm_mon + 1, ptm -> tm_mday,
-            ptm -> tm_hour, ptm -> tm_min, ptm -> tm_sec);
-
+    
     memset(pack_buf, 0, size);
-    snprintf(pack_buf, size, "%s,%s,%.2f", pack_info -> devid, strtime, pack_info -> temper);
+    snprintf(pack_buf, size, "%s,%s,%.2f", pack_info->devid, pack_info->sample_time, pack_info->temper);
 
     return strlen(pack_buf);
 }
@@ -100,23 +96,15 @@ int packetSegmentData(pack_info_t *pack_info, char *pack_buf, int size) {
  */
 int packetJsonData(pack_info_t *pack_info, char *pack_buf, int size) {
 
-    char            strtime[TIME_LEN] = {'\0'};
-    struct tm       *ptm;
-
     // check input args
     if( !pack_info || !pack_buf || size <= 0 ) {
         logError("function %s() gets invalid input arguments\n");
         return -1;
     }
 
-    ptm = &pack_info -> sample_time;
-    snprintf(strtime, sizeof(strtime), "%04d-%02d-%02d %02d:%02d:%02d",
-            ptm -> tm_year + 1900, ptm -> tm_mon + 1, ptm -> tm_mday,
-            ptm -> tm_hour, ptm -> tm_min, ptm -> tm_sec);
-
     memset(pack_buf, 0, size);
     snprintf(pack_buf, size, "{\"devid\":\"%s\", \"time\":\"%s\",\"temperature\":\"%.2f\"}",
-            pack_info -> devid, strtime, pack_info -> temper);
+            pack_info->devid, pack_info->sample_time, pack_info->temper);
 
     return strlen(pack_buf);
 }

@@ -18,7 +18,7 @@
  *
  * /boot/config.txt:
  *
- *          dtoverlay=w1-gpio-pullup,gpiopin=4
+ *          	dtoverlay = w1-gpio-pullup,gpiopin = 4
  *                 
  ********************************************************************************/
 
@@ -33,43 +33,39 @@
 
 #include "logger.h"
 
-/* File Content:
-
-   3a 01 4b 46 7f ff 0c 10 a5 : crc=a5 YES
-   3a 01 4b 46 7f ff 0c 10 a5 t=19625
-   
-*/
-
 int ds18b20GetTemperature(float *temp) {
 
+    int					rv = 0;
     char                w1_path[64] = "/home/wmd/code/mysys/bus/w1/devices/";
-    char                chip[20];
-    char                buf[128];
-    DIR                 *dirp;
-    struct dirent       *direntp;
-    int                 fd =-1;
-    char                *ptr;
+    char                chip[24] = {0};
+    char                buf[128] = {0};
+    DIR                 *dirp = NULL;
+    struct dirent       *direntp = NULL;
+    int                 fd = -1;
+    char                *ptr = NULL;
     int                 found = 0;
 
     // check input args
     if( !temp ) {
-        return -1;
+    	return -1;
     }
 
     // open dierectory /sys/bus/w1/devices to get chipset serial number
-    if( NULL == (dirp = opendir(w1_path)) ) {
+    if( !(dirp = opendir(w1_path)) ) {
         logError("opendir faliure: %s\n", strerror(errno));
         return -2;
     }
 
     while( NULL != (direntp = readdir(dirp)) ) {
-        if(strstr(direntp -> d_name, "28-")) {
+        if(strstr(direntp->d_name, "28-")) {
             // find and get the chipset sn filename
-            strcpy(chip,direntp -> d_name);
+            memset(chip, 0, sizeof(chip));
+            strcpy(chip, direntp->d_name);
             found = 1;
             break;
         }
     }
+    // close dir
     closedir(dirp);
 
     if( !found ) {
@@ -77,7 +73,7 @@ int ds18b20GetTemperature(float *temp) {
         return -3;
     }
 
-    // get DS18B20 sample file full path: /sys/bus/w1/devices/28-xxxx/w1_slave
+    // get DS18B20 sample file full path /sys/bus/w1/devices/28-xxxx/w1_slave
     strncat(w1_path, chip, sizeof(w1_path) - strlen(w1_path));
     strncat(w1_path, "/w1_slave", sizeof(w1_path) - strlen(w1_path));
 
@@ -86,24 +82,28 @@ int ds18b20GetTemperature(float *temp) {
         logError("open file %s failure: %s\n", w1_path, strerror(errno));
         return -4;
     }
-
+	
+	// read file content
     if( read(fd, buf, sizeof(buf)) < 0 ) {
         logError("read data from file %s failure: %s\n", w1_path, strerror(errno));
-        return -5;
+        rv = -5;
+        goto Cleanup;
     }
-
+	
+	// find temper string in content
     ptr = strstr(buf, "t=");
     if( !ptr ) {
         logError("get temperature failure\n");
-        return -6;
+        rv = -6;
+        goto Cleanup;
     }
-
+    
+	// convert string to float
     ptr += 2;
-
-    // convert string value to float value
     *temp = atof(ptr) / 1000;
-
+	
+ Cleanup:
+ 	// close file
     close(fd);
-
-    return 0;
+    return rv;
 }

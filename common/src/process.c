@@ -65,7 +65,7 @@ void installDefaultSignal(void) {
 
     struct sigaction    sigact, sigign;
 
-    logInfo("install default signal handler\n");
+    logDebug("install default signal handler\n");
 
     // initialize the catch signal structure
     sigemptyset(&sigact.sa_mask);
@@ -81,169 +81,6 @@ void installDefaultSignal(void) {
     sigaction(SIGINT,  &sigact, NULL); // catch interrupt signal CTRL+C
     sigaction(SIGSEGV, &sigact, NULL); // catch segmentation faults
     sigaction(SIGPIPE, &sigact, NULL); // catch broken pipe
-}
-
-
-/*	description:	set process runs as a daemon process in background
- *	 input args:	
- *                  $nodir   : change work directory to / or not,       1: nochange 0: change
- *                  $noclose : close opened file descrtipion or not,    1: noclose 0: close
- */
-void daemonize(int nochdir, int noclose) {
-
-    int rv, fd;
-    int i;
-
-    // if this process is already a daemon process (that means it's parent process is /init )
-    if (1 == getppid()){
-        return;
-    }
-
-    // fork a new process
-    rv = fork();
-    if (rv < 0){
-        exit(1);
-    }
-
-    // parent process exit
-    if (rv > 0) {
-        exit(0);
-    }
-
-    // obtain a new process session group
-    setsid();
-
-    if( !noclose ) {
-        // close all descriptors
-        for (i = getdtablesize(); i >= 0; --i) {
-                close(i);
-        }
-
-        // redirect standard input[0] to /dev/null
-        fd = open("/dev/null", O_RDWR);
-
-        // redirect standard output[1] to /dev/null
-        dup(fd);
-
-        // redirect standard error[2] to /dev/null
-        dup(fd);
-    }
-
-    umask(0);
-
-    if (!nochdir) {
-        chdir("/");
-    }
-
-    return;
-}
-
-
-/*	description:	check process already running or not, if not then run it and
- *                  record pid into $pidfile
- *	 input args:	
- *					$daemon : set process running in daemon or not
- *					$pidfile: file path whitch record PID
- * return value:    <0: failure  0: success
- */
-int checkSetProgramRunning(int daemon, char *pidfile) {
-
-    // check input args
-    if( !pidfile ) {
-        return -1;
-    }
-
-    // check process already running or not
-    if( checkDaemonRunning(pidfile) ) {
-        logError("process already running\n");
-        return -1;
-    }
-
-    // set process running as a daemon process
-    if( daemon ) {
-        if( setDaemonRunning(pidfile) < 0 ) {
-            logError("set process running as a daemon process failure\n");
-            return -2;
-        }
-    }
-    else {
-        if( recordDaemonPid(pidfile) < 0 ) {
-            logError("record process running PID failure\n");
-            return -3;
-        }
-    }
-
-    return 0;
-}
-
-
-/*	description:	record running daemon process PID to file "pid_file"
- *	 input args:	
- *					$pidfile: file path whitch record PID
- * return value:    <0: failure  0: success
- */
-int recordDaemonPid(const char *pidfile) {
-
-    struct stat     fStatBuf;
-    int             fd = -1;
-    int             mode = S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP | S_IRWXU;
-    char            ipc_dir[64] = {0};
-    char            pid[PID_ASCII_SIZE] = {0};
-
-    strncpy(ipc_dir, pidfile, 64);
-
-    // dirname() will modify ipc_dir and save the result
-    dirname(ipc_dir);
-
-    // if folder pidfile path doesn't exist, then create it
-    if( stat(ipc_dir, &fStatBuf) < 0 ) {
-        if( mkdir(ipc_dir, mode) < 0 ) {
-            logError("cannot create %s: %s\n", ipc_dir, strerror(errno));
-            return -1;
-        }
-        (void)chmod(ipc_dir, mode);
-    }
-
-    // create the process running PID file
-    mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-    if( (fd = open(pidfile, O_RDWR | O_CREAT | O_TRUNC, mode)) >= 0 ) {
-        memset(pid, 0, sizeof(pid));
-        snprintf(pid, sizeof(pid), "%u\n", (unsigned)getpid());
-        write(fd, pid, strlen(pid));
-        close(fd);
-        logDebug("record PID<%u> to file %s\n", getpid(), pidfile);
-    }
-    else {
-        logError("cannot create %s: %s\n", pidfile, strerror(errno));
-        return -2;
-    }
-
-    return 0;
-}
-
-
-/*	description:	get daemon process PID from PID record file "pid_file"
- *	 input args:	
- *					$pidfile: file path whitch record PID
- * return value:    pid_t: The daemon process PID, if faliure, return -1
- */
-pid_t getDaemonPid(const char *pidfile) {
-
-    FILE        *fp = NULL;
-    pid_t       pid;
-    char        pid_ascii[PID_ASCII_SIZE] = {0};
-
-    if( (fp = fopen(pidfile, "rb")) != NULL ) {
-        memset(pid_ascii, 0, sizeof(pid_ascii));
-        (void)fgets(pid_ascii, PID_ASCII_SIZE, fp);
-        (void)fclose(fp);
-        pid = atoi(pid_ascii);
-    }
-    else {
-        logError("can't open PID record file %s: %s\n", pidfile, strerror(errno));
-        return -1;
-    }
-    return pid;
 }
 
 
@@ -294,6 +131,26 @@ int checkDaemonRunning(const char *pidfile) {
 }
 
 
+/*	description:	set process running as daemon (if it's not already running) and record
+ *                  it's PID to pidfile.
+ *	 input args:	
+ *					$pidfile: file path whitch record PID
+ * return value:    =0: success     =-1:faliure
+ */
+int setDaemonRunning(const char *pidfile) {
+
+    daemon(0, 1);
+    logInfo("process running as daemon [PID:%d]\n", getpid());
+
+    if( recordDaemonPid(pidfile) < 0 ) {
+        logError("record PID to file \"%s\" failure\n", pidfile);
+        return -1;
+    }
+
+    return 0;
+}
+
+
 /*	description:	stop daemon process running
  *	 input args:	
  *					$pidfile: file path whitch record PID
@@ -324,25 +181,112 @@ int stopDaemonRunning(const char *pidfile) {
 }
 
 
-/*	description:	set process running as daemon (if it's not already running) and record
- *                  it's PID to pidfile.
+/*	description:	check process already running or not, if not then run it and
+ *                  record pid into $pidfile
  *	 input args:	
+ *					$daemon : set process running in daemon or not
  *					$pidfile: file path whitch record PID
- * return value:    =0: success     =-1:faliure
+ * return value:    <0: failure  0: success
  */
-int setDaemonRunning(const char *pidfile) {
+int checkSetProgramRunning(int daemon, char *pidfile) {
 
-    daemonize(0, 1);
-    logInfo("process running as daemon [PID:%d]\n", getpid());
-
-    if( recordDaemonPid(pidfile) < 0 ) {
-        logError("record PID to file \"%s\" failure\n", pidfile);
+    // check input args
+    if( !pidfile ) {
         return -1;
+    }
+
+    // check process already running or not
+    if( checkDaemonRunning(pidfile) ) {
+        logError("process already running\n");
+        return -1;
+    }
+
+    // set process running as a daemon process
+    if( daemon ) {
+        if( setDaemonRunning(pidfile) < 0 ) {
+            logError("set process running as a daemon process failure\n");
+            return -2;
+        }
+    }
+    else {
+        if( recordDaemonPid(pidfile) < 0 ) {
+            logError("record process running PID failure\n");
+            return -3;
+        }
     }
 
     return 0;
 }
 
+
+/*	description:	get daemon process PID from PID record file "pid_file"
+ *	 input args:	
+ *					$pidfile: file path whitch record PID
+ * return value:    pid_t: The daemon process PID, if faliure, return -1
+ */
+pid_t getDaemonPid(const char *pidfile) {
+
+    FILE        *fp = NULL;
+    pid_t       pid;
+    char        pid_ascii[PID_ASCII_SIZE] = {0};
+
+    if( (fp = fopen(pidfile, "rb")) != NULL ) {
+        memset(pid_ascii, 0, sizeof(pid_ascii));
+        (void)fgets(pid_ascii, PID_ASCII_SIZE, fp);
+        (void)fclose(fp);
+        pid = atoi(pid_ascii);
+    }
+    else {
+        logError("can't open PID record file %s: %s\n", pidfile, strerror(errno));
+        return -1;
+    }
+    return pid;
+}
+
+
+/*	description:	record running daemon process PID to file "pid_file"
+ *	 input args:	
+ *					$pidfile: file path whitch record PID
+ * return value:    <0: failure  0: success
+ */
+int recordDaemonPid(const char *pidfile) {
+
+    struct stat     fStatBuf;
+    int             fd = -1;
+    int             mode = S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP | S_IRWXU;
+    char            ipc_dir[64] = {0};
+    char            pid[PID_ASCII_SIZE] = {0};
+
+    strncpy(ipc_dir, pidfile, 64);
+
+    // dirname() will modify ipc_dir and save the result
+    dirname(ipc_dir);
+
+    // if folder pidfile path doesn't exist, then create it
+    if( stat(ipc_dir, &fStatBuf) < 0 ) {
+        if( mkdir(ipc_dir, mode) < 0 ) {
+            logError("cannot create %s: %s\n", ipc_dir, strerror(errno));
+            return -1;
+        }
+        (void)chmod(ipc_dir, mode);
+    }
+
+    // create the process running PID file
+    mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+    if( (fd = open(pidfile, O_RDWR | O_CREAT | O_TRUNC, mode)) >= 0 ) {
+        memset(pid, 0, sizeof(pid));
+        snprintf(pid, sizeof(pid), "%u\n", (unsigned)getpid());
+        write(fd, pid, strlen(pid));
+        close(fd);
+        logDebug("record PID<%u> to file %s\n", getpid(), pidfile);
+    }
+    else {
+        logError("cannot create %s: %s\n", pidfile, strerror(errno));
+        return -2;
+    }
+
+    return 0;
+}
 
 
 /*	description:	start a new thread to run $thread_workbody point function
@@ -400,23 +344,4 @@ int threadStart(pthread_t *thread_id, threadFunc thread_workbody, void *thread_a
     // destroy attributes of thread
     pthread_attr_destroy(&thread_attr);
     return rv;
-}
-
-
-/*	description:	excute a linux command by function system()
- *	 input args:	
- *					$format: command args
- */
-void execSystemCmd(const char *format, ...) {
-
-    char                cmd[256];
-    va_list             args;
-
-    memset(cmd, 0, sizeof(cmd));
-
-    va_start(args, format);
-    vsnprintf(cmd, sizeof(cmd), format, args);
-    va_end(args);
-
-    system(cmd);
 }

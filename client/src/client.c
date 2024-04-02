@@ -67,9 +67,9 @@ int main(int argc, char* argv[]) {
     time_t                  last_time = 0;
     int                     sample_flag = 0;
     
-    char                    pack_buf[1024];
+    char                    pack_buf[1024] = {0};
     int                     pack_bytes = 0;
-    pack_info_t             pack_info;
+    pack_info_t             pack_info = {0};
     packFunc             	pack_function = packetJsonData; // 使用JSON pack
 	
 	struct option           opts[] = {
@@ -156,10 +156,11 @@ int main(int argc, char* argv[]) {
 
             // 获取设备型号、当前时间
             getDevid(pack_info.devid, DEVID_LEN, SN_NUM);
-            getTime(&pack_info.sample_time);
+            getTime(pack_info.sample_time, TIME_LEN);
 
             // 将数据打包成JSON格式
             pack_bytes = pack_function(&pack_info, pack_buf, sizeof(pack_buf));
+            logDebug("packet sample data success, pack_buf = %s\n", pack_buf);
             // 采样标志至1
             sample_flag = 1;
         }
@@ -175,15 +176,14 @@ int main(int argc, char* argv[]) {
 
 int checkSampleTime(time_t *last_time, int interval) {
 
-    int                  need = 0;
-    time_t               now;
-
-    time(&now);
+    int                  flag = 0;
+    time_t               t = time(&t);
+    
 	// 现在的时间 > 上次采样时间 + 时间间隔则该采样了   
-    if( now >= *last_time + interval ) {
-        need = 1;
-        *last_time = now;
+    if( t >= *last_time + interval ) {
+        flag = 1;
+        *last_time = t;
     }
 
-    return need;
+    return flag;
 }

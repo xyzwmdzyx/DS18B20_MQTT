@@ -28,16 +28,34 @@ typedef struct proc_signal
 
 typedef void* (*threadFunc)(void *thread_arg);
 
+
 /* description: install default signal process functions */
 extern void installDefaultSignal(void);
 
 
-/*	description:	set process runs as a daemon process in background
+/*	description:	check daemon process running or not
  *	 input args:	
- *                  $nodir   : change work directory to / or not,       1: nochange 0: change
- *                  $noclose : close opened file descrtipion or not,    1: noclose 0: close
+ *					$pidfile: file path whitch record PID
+ * return value:    =1: already running  =0: not running yet
  */
-extern void daemonize(int nochdir, int noclose);
+extern int checkDaemonRunning(const char *pidfile);
+
+
+/*	description:	set process running as daemon (if it's not already running) and record
+ *                  it's PID to pidfile.
+ *	 input args:	
+ *					$pidfile: file path whitch record PID
+ * return value:    =0: success     =-1:faliure
+ */
+extern int setDaemonRunning(const char *pidfile);
+
+
+/*	description:	stop daemon process running
+ *	 input args:	
+ *					$pidfile: file path whitch record PID
+ * return value:    =0: success
+ */
+extern int stopDaemonRunning(const char *pidfile);
 
 
 /*	description:	check process already running or not, if not then run it and
@@ -50,14 +68,6 @@ extern void daemonize(int nochdir, int noclose);
 extern int checkSetProgramRunning(int daemon, char *pidfile);
 
 
-/*	description:	record running daemon process PID to file "pid_file"
- *	 input args:	
- *					$pidfile: file path whitch record PID
- * return value:    <0: failure  0: success
- */
-extern int recordDaemonPid(const char *pidfile);
-
-
 /*	description:	get daemon process PID from PID record file "pid_file"
  *	 input args:	
  *					$pidfile: file path whitch record PID
@@ -66,29 +76,12 @@ extern int recordDaemonPid(const char *pidfile);
 extern pid_t getDaemonPid(const char *pidfile);
 
 
-/*	description:	check daemon process running or not
+/*	description:	record running daemon process PID to file "pid_file"
  *	 input args:	
  *					$pidfile: file path whitch record PID
- * return value:    =1: already running  =0: not running yet
+ * return value:    <0: failure  0: success
  */
-extern int checkDaemonRunning(const char *pidfile);
-
-
-/*	description:	stop daemon process running
- *	 input args:	
- *					$pidfile: file path whitch record PID
- * return value:    =0: success
- */
-extern int stopDaemonRunning(const char *pidfile);
-
-
-/*	description:	set process running as daemon (if it's not already running) and record
- *                  it's PID to pidfile.
- *	 input args:	
- *					$pidfile: file path whitch record PID
- * return value:    =0: success     =-1:faliure
- */
-extern int setDaemonRunning(const char *pidfile);
+extern int recordDaemonPid(const char *pidfile);
 
 
 /*	description:	start a new thread to run $thread_workbody point function
@@ -99,12 +92,5 @@ extern int setDaemonRunning(const char *pidfile);
  * return value:    =0: success     <0: faliure
  */
 extern int threadStart(pthread_t *thread_id, threadFunc thread_workbody, void *thread_arg);
-
-
-/*	description:	excute a linux command by function system()
- *	 input args:	
- *					$format: command args
- */
-extern void execSystemCmd(const char *format, ...);
 
 #endif

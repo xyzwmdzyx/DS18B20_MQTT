@@ -56,20 +56,14 @@ static const char *level_colors[] = {
  *	 input args:	
  *					$time_buf: buffer which store time str
  */
-static inline void timeToStr(char *time_buf) {
+static inline void timeToStr(char *time_buf, int size) {
+       
+    time_t 			t = time(NULL);
+    struct tm 		*tm = localtime(&t);
     
-    int              len;
-    struct timeval   tv;
-    struct tm       *tm;
+    memset(time_buf, 0, size);
+    strftime(time_buf, size, "%Y-%m-%d %H:%M:%S", tm);
     
-    gettimeofday(&tv, NULL);
-    tm = localtime(&tv.tv_sec);
-
-    len = sprintf(time_buf, "%04d-%02d-%02d %02d:%02d:%02d.%02d",
-            tm -> tm_year + 1900, tm -> tm_mon + 1, tm -> tm_mday,
-            tm -> tm_hour, tm -> tm_min, tm -> tm_sec, ((int)tv.tv_usec + 5000) / 10000);
-    time_buf[len] = '\0';
-
     return;
 }
 
@@ -81,20 +75,20 @@ static inline void timeToStr(char *time_buf) {
  */
 static void mutexLock(void *udata, int lock) {
 
-    int                 err;
+    int                 rv;
     pthread_mutex_t     *log_lock = (pthread_mutex_t *)udata;
 
     // if lock == 1, then aquire mutex lock
     if( lock ) {
-        if ( (err = pthread_mutex_lock(log_lock)) != 0 ) {
-            logError("Unable to lock log's mutex lock: %s", strerror(err));
+        if ( (rv = pthread_mutex_lock(log_lock)) != 0 ) {
+            logError("Unable to lock log's mutex lock: %s", strerror(rv));
         }
             
     }
     // if lock == 0, then release mutex lock
     else {
-        if ( (err = pthread_mutex_unlock(log_lock) != 0) ) {
-            logError("Unable to unlock log's mutex lock: %s", strerror(err));
+        if ( (rv = pthread_mutex_unlock(log_lock)) != 0 ) {
+            logError("Unable to unlock log's mutex lock: %s", strerror(rv));
         }   
     }
 
@@ -140,6 +134,7 @@ int logInit(char *fname, int level, int size, int lock) {
         logInfo("log system(%s) start: filename: \"%s\", loglevel: %s\n",
         			LOG_VERSION, log_t.file, level_names[level]);
     }
+    
     // log to file
     else {
         if( !(fp = fopen(fname, "a+")) ) {
@@ -160,6 +155,8 @@ int logInit(char *fname, int level, int size, int lock) {
 /*	description:	terminate log system */
 void logTerm(void) {
 
+    logWarn("close log system success\n");
+    
     if( log_t.fp && (log_t.fp != stderr) ) {
         fclose(log_t.fp);
     }
@@ -231,7 +228,7 @@ void logWrite(int level, const char *file, int line, const char *fmt, ...) {
 
     // get time
     memset(time_str, 0, sizeof(time_str));
-    timeToStr(time_str);
+    timeToStr(time_str, 32);
 
     // log to console
     if( log_t.fp == stderr ) {
