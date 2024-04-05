@@ -15,14 +15,13 @@
 #define _MQTT_H_
 
 #include <mosquitto.h>
+#include "mqtt.h"
+#include "readconf.h"
 
-#define HOSTNAME_LEN	256
+typedef struct mqtt_ctx_s {
 
-typedef struct mqtt_ctx_s
-{
-    char        		host[HOSTNAME_LEN]; // broker hostname
-    int         		port;               // broker port
-    struct mosquitto 	*mosq;              // mosquitto mqtt descriptor
+    struct conf_t       conf;   // client configure
+    struct mosquitto 	*mosq;  // mosquitto mqtt instance
 } mqtt_ctx_t;
 
 
