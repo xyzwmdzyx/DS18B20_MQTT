@@ -30,19 +30,15 @@
 #define DAEMON_PIDFILE             	"/tmp/.client_mqttd.pid"
 #define	SN_NUM						40
 
-// 打印命令行参数帮助信息
+// print help information
 static void printUsage(char *progname) {
 
     printf("Usage: %s [OPTION]...\n", progname);
     printf(" %s is LingYun studio temperature MQTT client program running on RaspberryPi\n", progname);
-
     printf("\nMandatory arguments to long options are mandatory for short options too:\n");
-    printf("-b(--broker)    : sepcify broker server\n");
-    printf("-t(--readtime)	: sepcify report time interval, default 60 seconds\n");
     printf("-d(--debug)   	: running in debug mode\n");
     printf("-h(--help)    	: display this help information\n");
     printf("-v(--version) 	: display the program version\n");
-
     printf("\n%s version %s\n", progname, PROG_VERSION);
     return;
 }
@@ -56,13 +52,13 @@ int main(int argc, char* argv[]) {
 	int						rv = -1;
 	
 	char                    *progname = NULL;
-	char                    *logfile = "./log/client_mqttd.log";
-    int                     loglevel = LOG_INFO;
-    int                     logsize = 10; // 日志文件最大为10K
-    char					*dbfile = "./data/client_data.db";
+	char                    *logfile = "./log/mqttd.log";           // defalut log path is ./log/mqttd.log
+    int                     loglevel = LOG_INFO;                    // defalut log level is LOG_INFO
+    int                     logsize = 10;                           // defalut log max size is 10K
+    char					*dbfile = "./data/packdata.db";         // database file path can't be modify by user
     
     char                    *broker = NULL;
-    int                     readtime = 60; // 默认每60s上报一次
+    int                     readtime = 60;                          // defalut readtime is 60 seconds
     
     time_t                  last_time = 0;
     int                     sample_flag = 0;
@@ -70,40 +66,31 @@ int main(int argc, char* argv[]) {
     char                    pack_buf[1024] = {0};
     int                     pack_bytes = 0;
     pack_info_t             pack_info = {0};
-    packFunc             	pack_function = packetJsonData; // 使用JSON pack
+    packFunc             	pack_function = packetJsonData;         // using JSON pack
 	
 	struct option           opts[] = {
-                            {"broker", required_argument, NULL, 'b'},
-                            {"readtime", required_argument, NULL, 't'},
                             {"debug", no_argument, NULL, 'd'},
                             {"version", no_argument, NULL, 'v'},
                             {"help", no_argument, NULL, 'h'},
                             {NULL, 0, NULL, 0}
                     };
 	
-	// 命令行参数解析
+	// parament parse
 	progname = (char *)basename(argv[0]);
-	while( (rv = getopt_long(argc, argv, "b:t:dvh", opts, NULL)) != -1 ) {
+	while( (rv = getopt_long(argc, argv, "dvh", opts, NULL)) != -1 ) {
         switch(rv) {
-            case 'b': // 设置代理主机名
-                broker = optarg;
-                break;
 
-            case 't': // 设置上报时间间隔
-                readtime = atoi(optarg);
-                break;
-
-            case 'd': // 设置运行模式为debug模式
+            case 'd': // set running mode debug
                 daemon = 0;
-                logfile="console";
-                loglevel=LOG_DEBUG;
+                logfile = "console";
+                loglevel = LOG_DEBUG;
                 break;
 
-            case 'v':  // 获取软件版本
+            case 'v':  // get version information
                 printf("%s version %s\n", progname, PROG_VERSION);
                 return 0;
 
-            case 'h':  // 获取帮助信息
+            case 'h':  // get help information
                 printUsage(progname);
                 return 0;
 
@@ -112,6 +99,9 @@ int main(int argc, char* argv[]) {
         }
 
     }
+
+    // reading configure from file: ./client.conf
+    
     
     // 检查参数
     if( !broker || readtime <= 0 ) {
