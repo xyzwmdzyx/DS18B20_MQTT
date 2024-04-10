@@ -1,5 +1,5 @@
 CFLAGS += -I ./include -I ../common/include
-LDFLAGS = -Llib -lclimodule -lsqlite3
+LDFLAGS = -Llib -lclimodule -lsqlite3 -lmosquitto
 
 PREFIX ?= ./bin
 LIB = ./lib

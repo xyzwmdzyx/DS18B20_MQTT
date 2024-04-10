@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# -b 代表云平台，HW = 华为，AL = 阿里，TX = 腾讯； -t 代表读取温度的时间间隔，单位秒（s）
-PARSE="-b HW -t 60"
+PARSE="-d"
 
 SCRIPT_PATH=$(readlink -f "$0")
 SCRIPT_DIR=$(dirname "$SCRIPT_PATH")

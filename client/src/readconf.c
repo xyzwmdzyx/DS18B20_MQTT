@@ -11,143 +11,131 @@
  *                 
  ********************************************************************************/
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "readconf.h"
 #include "logger.h"
 
 
-/*	description:	get log system configurations
+/*	description:	get configurations
  *	 input args:	
  *					$confile  : configure file path
- *                  $log_conf : log system configurations struct 
+ *					$conf	  : configure struct
  * return value:    <0: failure   0: success
  */
-int readLogConf(char *confile, log_conf_t *log_conf) {
+int readConf(char *confile, conf_t *conf) {
 
+    FILE	*fp = NULL;
+    
     char    line[256];
     int     flag = 0;
     char    *key = NULL;
     char    *value = NULL;
     
     // check input args
-    if( !confile || !log_conf ) {
+    if( !confile || !conf ) {
         logError("fuction %s() gets invalid input args\n", __func__);
         flag = -1;
         goto Cleanup;
     }
-
-    // read configurations by line
-    memset(line, 0, sizeof(line));
-    while(fgets(line, sizeof(line), confile)) {
-
-        // remove '\n'
-        line[strcspn(line, "\n")] = '\0';
-
-        // check if this section is log
-        if( !strcmp(line, "[log]") ) {
-            flag = 1;
-            continue;
-        }
-
-        // read key and value
-        if( flag ) {
-
-            // check if this line is a new section
-            if(line[0] == '[') {
-                flag = 0;
-                break;
-            }
-
-            // parse key and value
-            key = strtok(line, "=");
-            value = strtok(NULL, "=");
-            if( key && value ) {
-                if( !strcmp(key, "logpath") ) {
-                    strncpy(log_conf->logfile, value, sizeof(log_conf->logfile));
-                }
-                else if( !strcmp(key, "loglevel") ) {
-                    log_conf->loglevel = atoi(value);
-                }
-                else if( !strcmp(key, "logsize") ) {
-                    log_conf->logsize = atoi(value);
-                }
-                else {
-                    logError("invalid key whitch is not been allowed\n");
-                    flag = -3;
-                    goto Cleanup;
-                }
-            }
-            else {
-                logError("can't read key or value form this section\n");
-                flag = -2;
-                goto Cleanup;
-            }
-        }
-
-    }
-
- Cleanup:
-    return flag;
-}
-
-
-/*	description:	get hardware configurations
- *	 input args:	
- *					$confile  : configure file path
- *                  $log_conf : hardware configurations struct 
- * return value:    <0: failure   0: success
- */
-int readHardWareConf(char *confile, hardware_conf_t *hard_conf) {
-
-    char    line[256];
-    int     flag = 0;
-    char    *key = NULL;
-    char    *value = NULL;
     
-    // check input args
-    if( !confile || !hard_conf ) {
-        logError("fuction %s() gets invalid input args\n", __func__);
-        flag = -1;
-        goto Cleanup;
+    // open configure file
+    fp = fopen(confile, "r");
+    if( !fp ) {
+    	logError("open configure file faliure\n");
+    	flag = -2;
+    	goto Cleanup;
     }
 
     // read configurations by line
     memset(line, 0, sizeof(line));
-    while(fgets(line, sizeof(line), confile)) {
+    while(fgets(line, sizeof(line), fp)) {
 
         // remove '\n'
         line[strcspn(line, "\n")] = '\0';
+        
+        // ignore #
+        if(line[0] == '#' || !strlen(line) || line[0] == '\n') {
+        	continue;
+        }
 
-        // check if this section is hardware
+        // check section
         if( !strcmp(line, "[hardware]") ) {
-            flag = 1;
-            continue;
+        	flag = 1;
+        	continue;
+        }
+        else if( !strcmp(line, "[broker]") ) {
+        	flag = 2;
+        	continue;
+        }
+        else if( !strcmp(line, "[publisher]") ) {
+        	flag = 3;
+        	continue;
         }
 
         // read key and value
         if( flag ) {
 
-            // check if this line is a new section
-            if(line[0] == '[') {
+            // check if this line is a new section or an empty line
+            if(line[0] == '[' || line[0] == '#' || !strlen(line) || line[0] == '\n') {
                 flag = 0;
-                break;
+                continue;
             }
 
             // parse key and value
             key = strtok(line, "=");
             value = strtok(NULL, "=");
-            if( key && value ) {
-                if( !strcmp(key, "deviceid") ) {
-                    strncpy(hard_conf->deviceid, value, sizeof(hard_conf->deviceid));
+            
+            printf("key = %s, value = %s\n", key, value);
+            
+            // read hardware config
+            if( (key && value) && (flag == 1) ) {
+            	if( !strcmp(key, "deviceid") ) {
+                    strncpy(conf->deviceid, value, sizeof(conf->deviceid));
                 }
                 else if( !strcmp(key, "ds18b20") ) {
-                    hard_conf->ds18b20 = atoi(value);
+                    conf->ds18b20 = atoi(value);
                 }
                 else {
-                    logError("invalid key whitch is not been allowed\n");
+                    logError("invalid key whitch is not been allowed in this section\n");
                     flag = -3;
                     goto Cleanup;
                 }
+            }
+            
+            // read borker config
+            else if( (key && value) && (flag == 2) ) {
+            	if( !strcmp(key, "hostname") ) {
+            		strncpy(conf->host, value, sizeof(conf->host));
+            	}
+            	else if( !strcmp(key, "port") ) {
+            		conf->port = atoi(value);
+            	}
+            	else if( !strcmp(key, "clientid") ) {
+            		strncpy(conf->clientid, value, sizeof(conf->clientid));
+            	}
+            	else if( !strcmp(key, "username") ) {
+            		strncpy(conf->username, value, sizeof(conf->username));
+            	}
+            	else if( !strcmp(key, "password") ) {
+            		strncpy(conf->password, value, sizeof(conf->password));
+            	}
+            	else {
+            		logError("invalid key whitch is not been allowed in this section\n");
+                    flag = -3;
+                    goto Cleanup;
+            	}
+            }
+            
+            // read publisher config
+            else if( (key && value) && (flag == 3) ) {
+            	if( !strcmp(key, "pubtopic") ) {
+            		strncpy(conf->pubtopic, value, sizeof(conf->pubtopic));
+            	}
+            	else if( !strcmp(key, "readtime") ) {
+            		conf->readtime = atoi(value);
+            	}
             }
             else {
                 logError("can't read key or value form this section\n");
@@ -155,80 +143,10 @@ int readHardWareConf(char *confile, hardware_conf_t *hard_conf) {
                 goto Cleanup;
             }
         }
-
     }
-
- Cleanup:
-    return flag;
-}
-
-
-/*	description:	get mosquitto mqtt configurations
- *	 input args:	
- *					$confile  : configure file path
- *                  $log_conf : mosquitto mqtt configurations struct 
- * return value:    <0: failure   0: success
- */
-int readBrokerConf(char *confile, broker_conf_t *bro_conf) {
-
-    char    line[256];
-    int     flag = 0;
-    char    *key = NULL;
-    char    *value = NULL;
     
-    // check input args
-    if( !confile || !mqtt_conf ) {
-        logError("fuction %s() gets invalid input args\n", __func__);
-        flag = -1;
-        goto Cleanup;
-    }
-
-    // read configurations by line
-    memset(line, 0, sizeof(line));
-    while(fgets(line, sizeof(line), confile)) {
-
-        // remove '\n'
-        line[strcspn(line, "\n")] = '\0';
-
-        // check if this section is hardware
-        if( !strcmp(line, "[broker]") ) {
-            flag = 1;
-            continue;
-        }
-
-        // read key and value
-        if( flag ) {
-
-            // check if this line is a new section
-            if(line[0] == '[') {
-                flag = 0;
-                break;
-            }
-
-            // parse key and value
-            key = strtok(line, "=");
-            value = strtok(NULL, "=");
-            if( key && value ) {
-                if( !strcmp(key, "deviceid") ) {
-                    strncpy(hard_conf->deviceid, value, sizeof(hard_conf->deviceid));
-                }
-                else if( !strcmp(key, "ds18b20") ) {
-                    hard_conf->ds18b20 = atoi(value);
-                }
-                else {
-                    logError("invalid key whitch is not been allowed\n");
-                    flag = -3;
-                    goto Cleanup;
-                }
-            }
-            else {
-                logError("can't read key or value form this section\n");
-                flag = -2;
-                goto Cleanup;
-            }
-        }
-
-    }
+    //close configure file
+    fclose(fp);
 
  Cleanup:
     return flag;

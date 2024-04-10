@@ -20,6 +20,7 @@
 #include <string.h>
 #include <errno.h>
 
+#include "readconf.h"
 #include "logger.h"
 #include "process.h"
 #include "database.h"
@@ -28,7 +29,6 @@
 
 #define PROG_VERSION               	"v1.0.0"
 #define DAEMON_PIDFILE             	"/tmp/.client_mqttd.pid"
-#define	SN_NUM						40
 
 // print help information
 static void printUsage(char *progname) {
@@ -52,24 +52,26 @@ int main(int argc, char* argv[]) {
 	int						rv = -1;
 	
 	char                    *progname = NULL;
-	char                    *logfile = "./log/mqttd.log";           // defalut log path is ./log/mqttd.log
-    int                     loglevel = LOG_INFO;                    // defalut log level is LOG_INFO
-    int                     logsize = 10;                           // defalut log max size is 10K
-    char					*dbfile = "./data/packdata.db";         // database file path can't be modify by user
-    
-    char                    *broker = NULL;
-    int                     readtime = 60;                          // defalut readtime is 60 seconds
-    
+	
+	char					*logfile = "./log/mqttd.log";
+	int						loglevel = LOG_INFO;
+	int						logsize = 10;
+	
+	char					*dbfile = "./data/mqttd.db";
+	
+	char					*confile = "./client.conf";
+	conf_t					cli_conf = {0};
+
     time_t                  last_time = 0;
     int                     sample_flag = 0;
     
     char                    pack_buf[1024] = {0};
     int                     pack_bytes = 0;
     pack_info_t             pack_info = {0};
-    packFunc             	pack_function = packetJsonData;         // using JSON pack
+    packFunc             	pack_function = packetJsonData;
 	
 	struct option           opts[] = {
-                            {"debug", no_argument, NULL, 'd'},
+                            {"debug", no_argument, NULL, 'd'},                  
                             {"version", no_argument, NULL, 'v'},
                             {"help", no_argument, NULL, 'h'},
                             {NULL, 0, NULL, 0}
@@ -99,42 +101,46 @@ int main(int argc, char* argv[]) {
         }
 
     }
-
-    // reading configure from file: ./client.conf
     
-    
-    // 检查参数
-    if( !broker || readtime <= 0 ) {
-        printUsage(argv[0]);
-        return 0;
-    }
-    
-    // 初始化日志系统
+    // init log system
     if( logInit(logfile, loglevel, logsize, LOG_LOCK_DISABLE) < 0 ) {
         fprintf(stderr, "Initial log system failure, program will exit\n");
         return -1;
     }
     
-    // 初始化数据库系统
+    // init database system
     if( databaseInit(dbfile) < 0 ) {
         logError("Initial database system faliure, program will exit\n");
         return -2;
     }
     
-    // 安装信号及其默认动作
+    // reading configure from file: ./client.conf
+    if( (rv = readConf(confile, &cli_conf)) < 0 ) {
+    	logError("Read configurations from %s faliure, program will exit\n", confile);
+    	return -3;
+    }
+    
+    // if ds18b20 is not aviliable, then exit this program
+    if( cli_conf.ds18b20 != 1 ) {
+    	logError("ds18b20 is not aviliable, program will exit\n");
+    	goto Cleanup;
+    }
+    
+    // install signal and it's defalut fuction
     installDefaultSignal();
     
-    // 检查程序是否已经运行，如果没有，则将其丢到后台运行
+    // check program already running as daemon or not. If not, then set program running in daemon mode
     if( checkSetProgramRunning(daemon, DAEMON_PIDFILE) < 0 ) {
     	goto Cleanup;
     }
     
-    // 当g_signal.stop != 1，则一直执行
+    // continue running when g_signal.stop != 1
     while( !g_signal.stop ) {
+    
     	// 采样标志至0
     	sample_flag = 0;
     	// 如果到时间就读DS18B20的温度
-    	if( checkSampleTime(&last_time, readtime) ) {
+    	if( checkSampleTime(&last_time, cli_conf.readtime) ) {
             logDebug("start sample DS18B20 termperature\n");
 
             // 读取DS18B20的温度
@@ -145,7 +151,7 @@ int main(int argc, char* argv[]) {
             logInfo("sample DS18B20 termperature success, temper = %.3f oC\n", pack_info.temper);
 
             // 获取设备型号、当前时间
-            getDevid(pack_info.devid, DEVID_LEN, SN_NUM);
+            strncpy(pack_info.devid, cli_conf.deviceid, sizeof(pack_info.devid));
             getTime(pack_info.sample_time, TIME_LEN);
 
             // 将数据打包成JSON格式

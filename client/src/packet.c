@@ -20,27 +20,6 @@
 #include "ds18b20.h"
 
 
-/*	description:	get device ID
- *	 input args:	
- *					$devid : device ID buffer
- *                  $size  : device ID buffer size
- *                  $sn    : device chip number   
- * return value:    <0: failure   0: success
- */
-int getDevid(char *devid, int size, int sn) {
-
-    // check input args
-    if( !devid || size < DEVID_LEN ) {
-        logError("function %s() gets invalid input arugments\n", __func__);
-        return -1;
-    }
-
-    memset(devid, 0, size);
-    snprintf(devid, size, "rpi#%04d", sn);
-    return 0;
-}
-
-
 /*	description:	get sample time
  *	 input args:	
  *					$sample_time : time information buffer

@@ -31,16 +31,6 @@ typedef struct pack_info_s
 typedef int (*packFunc)(pack_info_t *pack_info, char *pack_buf, int size);
 
 
-/*	description:	get device ID
- *	 input args:	
- *					$devid : device ID buffer
- *                  $size  : device ID buffer size
- *                  $sn    : device chip number   
- * return value:    <0: failure   0: success
- */
-extern int getDevid(char *devid, int size, int sn);
-
-
 /*	description:	get sample time
  *	 input args:	
  *					$sample_time : time information buffer
