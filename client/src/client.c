@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
     }
     
     // init mosquitto mqtt system
-    if( mqttInit(&mq) < 0) {
+    if( mqttInit(&cli_mqtt) < 0) {
     	logError("Initial mosquitto mqtt system faliure, program will exit\n");
     	goto Cleanup;
     }
@@ -174,12 +174,12 @@ int main(int argc, char* argv[]) {
         }
         
         // connect to broker
-        if( !cli_mqtt->mosq ) {
+        if( !cli_mqtt.mosq ) {
         	mqttConnect(&cli_mqtt);
         }
         
         // check if client really connect to broker
-        if( mqttCheckConnect(cli_mqtt) < 0 ) {
+        if( mqttCheckConnect(&cli_mqtt) < 0 ) {
         	if( cli_mqtt.mosq ) {
         		logError("mosquitto mqtt got disconnected, terminate it and reconnect now\n");
         		mqttTerm(&cli_mqtt);
@@ -197,7 +197,7 @@ int main(int argc, char* argv[]) {
         // if client connect, then publish data to broker
         if( sample_flag ) {
         	logDebug("mosquitto mqtt publish sample packet bytes[%d]: %s\n", pack_bytes, pack_buf);
-        	if( mqttPublish(cli_mqtt, pack_buf, pack_bytes) < 0 ) {
+        	if( mqttPublish(&cli_mqtt, pack_buf, pack_bytes) < 0 ) {
                 logWarn("mosquitto mqtt publish sample packet failure, save it in database now\n");
                 databasePushPacket(pack_buf, pack_bytes);
                 mqttTerm(&cli_mqtt);
@@ -207,7 +207,7 @@ int main(int argc, char* argv[]) {
         // mosquitto mqtt publish packet in database
         if( !databasePopPacket(pack_buf, sizeof(pack_buf), &pack_bytes) ) {
             logDebug("mosquitto mqtt publish database packet bytes[%d]: %s\n", pack_bytes, pack_buf);
-            if( mqttPublish(cli_mqtt, pack_buf, pack_bytes) < 0 ) {
+            if( mqttPublish(&cli_mqtt, pack_buf, pack_bytes) < 0 ) {
                 logError("mosquitto mqtt publish database packet failure\n");
                 mqttTerm(&cli_mqtt);
             }

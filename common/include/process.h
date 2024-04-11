@@ -93,4 +93,6 @@ extern int recordDaemonPid(const char *pidfile);
  */
 extern int threadStart(pthread_t *thread_id, threadFunc thread_workbody, void *thread_arg);
 
+extern void msleep(unsigned long ms);
+
 #endif

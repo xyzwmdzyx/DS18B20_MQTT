@@ -15,12 +15,11 @@
 #define _MQTT_H_
 
 #include <mosquitto.h>
-#include "mqtt.h"
 #include "readconf.h"
 
 typedef struct mqtt_ctx_s {
 
-    struct conf_t       conf;   // client configure
+    conf_t       		conf;   // client configure
     struct mosquitto 	*mosq;  // mosquitto mqtt instance
 } mqtt_ctx_t;
 
@@ -54,7 +53,7 @@ extern int mqttConnect(mqtt_ctx_t *mq);
  *					$mq  : mosquitto mqtt context
  * return value:    <0: failure   0: success
  */
-extern int mqttCheckConnect(mqtt_ctx_t mq);
+extern int mqttCheckConnect(mqtt_ctx_t *mq);
 
 
 /*	description:	mosquitto mqtt client publish data to broker
@@ -62,6 +61,6 @@ extern int mqttCheckConnect(mqtt_ctx_t mq);
  *					$mq  : mosquitto mqtt context
  * return value:    <0: failure   0: success
  */
-extern int mqttPublish(mqtt_ctx_t mq, char *data, int bytes);
+extern int mqttPublish(mqtt_ctx_t *mq, char *data, int bytes);
 
 #endif

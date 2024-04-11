@@ -11,8 +11,28 @@
  *                 
  ********************************************************************************/
 
-
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <netdb.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/un.h>
+#include <poll.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <linux/sockios.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
+#include <sys/resource.h>
 #include <mosquitto.h>
+#include "mqtt.h"
+#include "readconf.h"
+#include "logger.h"
 
 int mqttInit(mqtt_ctx_t *mq) {
 
@@ -76,14 +96,14 @@ int mqttConnect(mqtt_ctx_t *mq) {
     hints.ai_protocol = IPPROTO_TCP;
 
     // if $host is an IP address, then don't need to translate domain name
-    if( inet_aton(mq->conf->host, &inaddr) ) {
+    if( inet_aton(mq->conf.host, &inaddr) ) {
         hints.ai_flags |= AI_NUMERICHOST;
     }
 
-    snprintf(service, sizeof(service), "%d", mq->port);
+    snprintf(service, sizeof(service), "%d", mq->conf.port);
 
     // translate domain name into IPv4 address
-    if( (rv = getaddrinfo(mq->conf->host, service, &hints, &res)) ) {
+    if( (rv = getaddrinfo(mq->conf.host, service, &hints, &res)) ) {
         logError("translate domain name into IPv4 address failure\n");
         return -3;
     }
@@ -92,7 +112,7 @@ int mqttConnect(mqtt_ctx_t *mq) {
     for(rp = res; rp != NULL; rp = rp->ai_next) {
 
         // create a new mosquitoo mqtt instance
-        tmp_mosq = mosquitto_new();
+        tmp_mosq = mosquitto_new(mq->conf.clientid, true, NULL);
         if( !tmp_mosq ) {
             logError("mosquitto_new() create failure\n");
             rv = -3;
@@ -100,13 +120,13 @@ int mqttConnect(mqtt_ctx_t *mq) {
         }
         
         // set username and password
-        mosquitto_username_pw_set(tmp_mosq, mq->conf->username, mq->conf->password);
+        mosquitto_username_pw_set(tmp_mosq, mq->conf.username, mq->conf.password);
 
         // connect to broker
-        rv = mosquitto_connect(tmp_mosq, rp->ai_addr, mq->conf->port, mq->conf->keepalive);
+        rv = mosquitto_connect(tmp_mosq, rp->ai_addr->sa_data, mq->conf.port, mq->conf.keepalive);
         if( rv == MOSQ_ERR_SUCCESS ) {
             mq->mosq = tmp_mosq;
-            logInfo("connect to server[%s:%d] successfully!\n", mq->conf->host, mq->conf->port);
+            logInfo("connect to server[%s:%d] successfully!\n", mq->conf.host, mq->conf.port);
             break;
         }
         else {
@@ -120,7 +140,7 @@ int mqttConnect(mqtt_ctx_t *mq) {
     return rv;
 }
 
-int mqttCheckConnect(mqtt_ctx_t mq) {
+int mqttCheckConnect(mqtt_ctx_t *mq) {
 
 	// check input args
 	if( !mq ) {
@@ -136,7 +156,7 @@ int mqttCheckConnect(mqtt_ctx_t mq) {
 	}
 }
 
-int mqttPublish(mqtt_ctx_t mq, char *data, int bytes) {
+int mqttPublish(mqtt_ctx_t *mq, char *data, int bytes) {
 	
 	int			rv = 0;
 	
@@ -146,7 +166,7 @@ int mqttPublish(mqtt_ctx_t mq, char *data, int bytes) {
 	}
 	
 	// publish data to broker
-	rv = mosquitto_publish(mq->mosq, NULL, mq->conf->pubtopic, bytes + 1, data, mq->conf->qos, false);
+	rv = mosquitto_publish(mq->mosq, NULL, mq->conf.pubtopic, bytes + 1, data, mq->conf.qos, false);
 	if( rv != MOSQ_ERR_SUCCESS ) {
 		logError("publish data to broker faliure\n");
 		mqttTerm(mq);

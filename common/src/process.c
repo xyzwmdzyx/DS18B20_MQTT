@@ -345,3 +345,21 @@ int threadStart(pthread_t *thread_id, threadFunc thread_workbody, void *thread_a
     pthread_attr_destroy(&thread_attr);
     return rv;
 }
+
+void msleep(unsigned long ms) {
+
+    struct timespec 	cSleep;
+    unsigned long 		ulTmp;
+
+    cSleep.tv_sec = ms / 1000;
+    if (cSleep.tv_sec == 0) {
+        ulTmp = ms * 10000;
+        cSleep.tv_nsec = ulTmp * 100;
+    }
+    else {
+        cSleep.tv_nsec = 0;
+    }
+
+    nanosleep(&cSleep, 0);
+    return ;
+}
