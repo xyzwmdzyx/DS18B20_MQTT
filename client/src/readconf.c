@@ -106,7 +106,10 @@ int readConf(char *confile, conf_t *conf) {
             
             // read borker config
             else if( (key && value) && (flag == 2) ) {
-            	if( !strcmp(key, "hostname") ) {
+            	if( !strcmp(key, "platform") ) {
+            		conf->platform = atoi(value);
+            	}
+            	else if( !strcmp(key, "hostname") ) {
             		strncpy(conf->host, value, sizeof(conf->host));
             	}
             	else if( !strcmp(key, "port") ) {
@@ -132,6 +135,12 @@ int readConf(char *confile, conf_t *conf) {
             else if( (key && value) && (flag == 3) ) {
             	if( !strcmp(key, "pubtopic") ) {
             		strncpy(conf->pubtopic, value, sizeof(conf->pubtopic));
+            	}
+            	else if( !strcmp(key, "QoS") ) {
+            		conf->qos = atoi(value);
+            	}
+            	else if( !strcmp(key, "keepalive") ) {
+            		conf->keepalive = atoi(value);
             	}
             	else if( !strcmp(key, "readtime") ) {
             		conf->readtime = atoi(value);

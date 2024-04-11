@@ -57,7 +57,7 @@ extern int packetSegmentData(pack_info_t *pack_info, char *pack_buf, int size);
  *                  $size      : buffer size 
  * return value:    <0: failure   >0: success
  */
-extern int packetJsonData(pack_info_t *pack_info, char *pack_buf, int size);
+extern int packetJsonData(pack_info_t *pack_info, char *pack_buf, int size, int platform);
 
 
 #endif

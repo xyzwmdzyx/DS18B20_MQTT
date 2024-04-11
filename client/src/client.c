@@ -26,6 +26,7 @@
 #include "database.h"
 #include "ds18b20.h"
 #include "packet.h"
+#include "mqtt.h"
 
 #define PROG_VERSION               	"v1.0.0"
 #define DAEMON_PIDFILE             	"/tmp/.client_mqttd.pid"
@@ -69,6 +70,8 @@ int main(int argc, char* argv[]) {
     int                     pack_bytes = 0;
     pack_info_t             pack_info = {0};
     packFunc             	pack_function = packetJsonData;
+    
+    mqtt_ctx_t				cli_mqtt = {0};
 	
 	struct option           opts[] = {
                             {"debug", no_argument, NULL, 'd'},                  
@@ -108,16 +111,33 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     
+    // install signal and it's defalut fuction
+    installDefaultSignal();
+    
+    // check program already running as daemon or not. If not, then set program running in daemon mode
+    if( checkSetProgramRunning(daemon, DAEMON_PIDFILE) < 0 ) {
+    	logTerm();
+    	return -2;
+    }
+    
     // init database system
     if( databaseInit(dbfile) < 0 ) {
         logError("Initial database system faliure, program will exit\n");
-        return -2;
+        unlink(DAEMON_PIDFILE);
+    	logTerm();
+    	return -3;
+    }
+    
+    // init mosquitto mqtt system
+    if( mqttInit(&mq) < 0) {
+    	logError("Initial mosquitto mqtt system faliure, program will exit\n");
+    	goto Cleanup;
     }
     
     // reading configure from file: ./client.conf
     if( (rv = readConf(confile, &cli_conf)) < 0 ) {
     	logError("Read configurations from %s faliure, program will exit\n", confile);
-    	return -3;
+    	goto Cleanup;
     }
     
     // if ds18b20 is not aviliable, then exit this program
@@ -126,43 +146,82 @@ int main(int argc, char* argv[]) {
     	goto Cleanup;
     }
     
-    // install signal and it's defalut fuction
-    installDefaultSignal();
-    
-    // check program already running as daemon or not. If not, then set program running in daemon mode
-    if( checkSetProgramRunning(daemon, DAEMON_PIDFILE) < 0 ) {
-    	goto Cleanup;
-    }
-    
     // continue running when g_signal.stop != 1
     while( !g_signal.stop ) {
     
-    	// 采样标志至0
+    	// set sample flag = 0
     	sample_flag = 0;
-    	// 如果到时间就读DS18B20的温度
+    	// if time interval = readtime, then read ds18b20 temper
     	if( checkSampleTime(&last_time, cli_conf.readtime) ) {
             logDebug("start sample DS18B20 termperature\n");
 
-            // 读取DS18B20的温度
+            // read ds18b20 temper
             if( (rv = ds18b20GetTemperature(&pack_info.temper)) < 0 ) {
                 logError("sample DS18B20 temperature failure, errcode = %d\n", rv);
                 continue;
             }
             logInfo("sample DS18B20 termperature success, temper = %.3f oC\n", pack_info.temper);
 
-            // 获取设备型号、当前时间
+            // get device id and sample time
             strncpy(pack_info.devid, cli_conf.deviceid, sizeof(pack_info.devid));
             getTime(pack_info.sample_time, TIME_LEN);
 
-            // 将数据打包成JSON格式
-            pack_bytes = pack_function(&pack_info, pack_buf, sizeof(pack_buf));
+            // pack data into JSON pakcet
+            pack_bytes = pack_function(&pack_info, pack_buf, sizeof(pack_buf), cli_mqtt.conf.platform);
             logDebug("packet sample data success, pack_buf = %s\n", pack_buf);
-            // 采样标志至1
+            // set sample flag = 1
             sample_flag = 1;
         }
+        
+        // connect to broker
+        if( !cli_mqtt->mosq ) {
+        	mqttConnect(&cli_mqtt);
+        }
+        
+        // check if client really connect to broker
+        if( mqttCheckConnect(cli_mqtt) < 0 ) {
+        	if( cli_mqtt.mosq ) {
+        		logError("mosquitto mqtt got disconnected, terminate it and reconnect now\n");
+        		mqttTerm(&cli_mqtt);
+        	}
+        }
+        
+        // if client disconnect, then push data into database
+        if( !cli_mqtt.mosq ) {
+        	if( sample_flag ) {
+        		databasePushPacket(pack_buf, pack_bytes);
+        	}
+        	continue;
+        }
+        
+        // if client connect, then publish data to broker
+        if( sample_flag ) {
+        	logDebug("mosquitto mqtt publish sample packet bytes[%d]: %s\n", pack_bytes, pack_buf);
+        	if( mqttPublish(&cli_mqtt, pack_buf, pack_bytes) < 0 ) {
+                logWarn("mosquitto mqtt publish sample packet failure, save it in database now\n");
+                databasePushPacket(pack_buf, pack_bytes);
+                mqttTerm(&cli_mqtt);
+            }
+        }
+        
+        // mosquitto mqtt publish packet in database
+        if( !databasePopPacket(pack_buf, sizeof(pack_buf), &pack_bytes) ) {
+            logDebug("mosquitto mqtt publish database packet bytes[%d]: %s\n", pack_bytes, pack_buf);
+            if( mqttPublish(&cli_mqtt, pack_buf, pack_bytes) < 0 ) {
+                logError("mosquitto mqtt publish database packet failure\n");
+                mqttTerm(&cli_mqtt);
+            }
+            else {
+                logWarn("mosquitto mqtt publish database packet success, remove it from database now\n");
+                databaseDelPacket();
+            }
+        }
+        
+        msleep(50);
     }
     
  Cleanup:
+  	mqttTerm(&cli_mqtt);
     databaseTerm();
     unlink(DAEMON_PIDFILE);
     logTerm();
@@ -174,8 +233,7 @@ int checkSampleTime(time_t *last_time, int interval) {
 
     int                  flag = 0;
     time_t               t = time(&t);
-    
-	// 现在的时间 > 上次采样时间 + 时间间隔则该采样了   
+      
     if( t >= *last_time + interval ) {
         flag = 1;
         *last_time = t;

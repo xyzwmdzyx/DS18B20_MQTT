@@ -24,6 +24,7 @@ typedef struct conf_s {
 
 	/*mosquitto mqtt broker configurations*/	
 	    
+    int				platform;			// broker platform, 1 means HW, 2 means AL, 3 means TX
     char        	host[256];          // broker hostname
     int         	port;               // broker port
     char            clientid[128];      // client id
@@ -33,7 +34,10 @@ typedef struct conf_s {
 	/*mosquitto mqtt publisher configuations*/	
 	
     char            pubtopic[256];      // publish topic
-    int             readtime;           // sample interval tim
+    int				qos;				// message QoS
+    int				keepalive;			// TCP keepalive time
+    int             readtime;           // sample interval time
+    
 
 }conf_t;
 
