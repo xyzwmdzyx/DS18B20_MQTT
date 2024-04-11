@@ -197,7 +197,7 @@ int main(int argc, char* argv[]) {
         // if client connect, then publish data to broker
         if( sample_flag ) {
         	logDebug("mosquitto mqtt publish sample packet bytes[%d]: %s\n", pack_bytes, pack_buf);
-        	if( mqttPublish(&cli_mqtt, pack_buf, pack_bytes) < 0 ) {
+        	if( mqttPublish(cli_mqtt, pack_buf, pack_bytes) < 0 ) {
                 logWarn("mosquitto mqtt publish sample packet failure, save it in database now\n");
                 databasePushPacket(pack_buf, pack_bytes);
                 mqttTerm(&cli_mqtt);
@@ -207,7 +207,7 @@ int main(int argc, char* argv[]) {
         // mosquitto mqtt publish packet in database
         if( !databasePopPacket(pack_buf, sizeof(pack_buf), &pack_bytes) ) {
             logDebug("mosquitto mqtt publish database packet bytes[%d]: %s\n", pack_bytes, pack_buf);
-            if( mqttPublish(&cli_mqtt, pack_buf, pack_bytes) < 0 ) {
+            if( mqttPublish(cli_mqtt, pack_buf, pack_bytes) < 0 ) {
                 logError("mosquitto mqtt publish database packet failure\n");
                 mqttTerm(&cli_mqtt);
             }

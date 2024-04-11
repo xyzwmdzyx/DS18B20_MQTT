@@ -28,7 +28,7 @@ typedef struct pack_info_s
 } pack_info_t;
 
 // packet function pointer type
-typedef int (*packFunc)(pack_info_t *pack_info, char *pack_buf, int size);
+typedef int (*packFunc)(pack_info_t *pack_info, char *pack_buf, int size, int platform);
 
 
 /*	description:	get sample time
