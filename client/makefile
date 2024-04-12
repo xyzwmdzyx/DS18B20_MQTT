@@ -16,7 +16,7 @@ all: shared_lib clean
 	@gcc ${CFLAGS} ./src/client.c -o ${PROGRAM_NAME} ${LDFLAGS}
 
 shared_lib:
-	@gcc ${CFLAGS} -fPIC -shared -o lib${LIB_NAME}.so $(SRC)
+	@gcc ${CFLAGS} -fPIC -shared -o lib${LIB_NAME}.so $(SRC) -lmosquitto
 	@mkdir -p ${LIB}
 	@mv lib${LIB_NAME}.so ${LIB}
 	

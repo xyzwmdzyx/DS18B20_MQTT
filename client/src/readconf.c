@@ -87,8 +87,6 @@ int readConf(char *confile, conf_t *conf) {
             key = strtok(line, "=");
             value = strtok(NULL, "=");
             
-            printf("key = %s, value = %s\n", key, value);
-            
             // read hardware config
             if( (key && value) && (flag == 1) ) {
             	if( !strcmp(key, "deviceid") ) {

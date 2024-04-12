@@ -83,11 +83,12 @@ int packetJsonData(pack_info_t *pack_info, char *pack_buf, int size, int platfor
 
     memset(pack_buf, 0, size);
     
+    // packet data into JSON
     if( platform == 1 ) {
-    	snprintf(pack_buf, size, "{\"services\": [{\"service_id\": \"1\",\"properties\": {\"Temperature\": %.2f}}]}", pack_info->temper);
+    	snprintf(pack_buf, size, "{\"services\": [{\"service_id\": \"1\",\"properties\": {\"temperature\": %.2f}}]}", pack_info->temper);
     }
     else if( platform == 2 ) {
-    	snprintf(pack_buf, size, "{\"params\": {\"Temperature\": %.2f}}", pack_info->temper);
+    	snprintf(pack_buf, size, "{\"params\": {\"temperature\": %.2f}}", pack_info->temper);
     }
 	else if( platform == 3 ) {
 		snprintf(pack_buf, size, "{\"type\": \"update\",\"state\": {\"reported\": {\"temperature\": %.2f}},\"version\": 1,   \"clientToken\": \"clientToken\"", pack_info->temper);

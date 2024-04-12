@@ -17,27 +17,20 @@
 #include <mosquitto.h>
 #include "readconf.h"
 
-typedef struct mqtt_ctx_s {
-
-    conf_t       		conf;   // client configure
-    struct mosquitto 	*mosq;  // mosquitto mqtt instance
-} mqtt_ctx_t;
-
-
 /*	description:	init mosquitto mqtt
  *	 input args:	
- *					$mq  : mosquitto mqtt context
+ *					$mosq  : mosquitto mqtt pointer
  * return value:    <0: failure   0: success
  */
-extern int mqttInit(mqtt_ctx_t *mq);
+extern int mqttInit(struct mosquitto *mosq);
 
 
 /*	description:	terminate mosquitto mqtt
  *	 input args:	
- *					$mq  : mosquitto mqtt context
+ *					$mosq  : mosquitto mqtt pointer
  * return value:    <0: failure   0: success
  */
-extern int mqttTerm(mqtt_ctx_t *mq);
+extern int mqttTerm(struct mosquitto *mosq);
 
 
 /*	description:	mosquitto mqtt client connect to broker

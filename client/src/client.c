@@ -71,7 +71,7 @@ int main(int argc, char* argv[]) {
     pack_info_t             pack_info = {0};
     packFunc             	pack_function = packetJsonData;
     
-    mqtt_ctx_t				cli_mqtt = {0};
+    struct mosquitto		*mosq = NULL;
 	
 	struct option           opts[] = {
                             {"debug", no_argument, NULL, 'd'},                  
@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
     }
     
     // init mosquitto mqtt system
-    if( mqttInit(&cli_mqtt) < 0) {
+    if( mqttInit(mosq) < 0) {
     	logError("Initial mosquitto mqtt system faliure, program will exit\n");
     	goto Cleanup;
     }
@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
     	logError("Read configurations from %s faliure, program will exit\n", confile);
     	goto Cleanup;
     }
-    
+       
     // if ds18b20 is not aviliable, then exit this program
     if( cli_conf.ds18b20 != 1 ) {
     	logError("ds18b20 is not aviliable, program will exit\n");
@@ -167,27 +167,19 @@ int main(int argc, char* argv[]) {
             getTime(pack_info.sample_time, TIME_LEN);
 
             // pack data into JSON pakcet
-            pack_bytes = pack_function(&pack_info, pack_buf, sizeof(pack_buf), cli_mqtt.conf.platform);
+            pack_bytes = pack_function(&pack_info, pack_buf, sizeof(pack_buf), cli_conf.platform);
             logDebug("packet sample data success, pack_buf = %s\n", pack_buf);
             // set sample flag = 1
             sample_flag = 1;
         }
         
         // connect to broker
-        if( !cli_mqtt.mosq ) {
-        	mqttConnect(&cli_mqtt);
-        }
-        
-        // check if client really connect to broker
-        if( mqttCheckConnect(&cli_mqtt) < 0 ) {
-        	if( cli_mqtt.mosq ) {
-        		logError("mosquitto mqtt got disconnected, terminate it and reconnect now\n");
-        		mqttTerm(&cli_mqtt);
-        	}
+        if( !mosq ) {
+        	rv = mqttConnect(mosq);
         }
         
         // if client disconnect, then push data into database
-        if( !cli_mqtt.mosq ) {
+        if( rv < 0 ) {
         	if( sample_flag ) {
         		databasePushPacket(pack_buf, pack_bytes);
         	}
@@ -197,19 +189,19 @@ int main(int argc, char* argv[]) {
         // if client connect, then publish data to broker
         if( sample_flag ) {
         	logDebug("mosquitto mqtt publish sample packet bytes[%d]: %s\n", pack_bytes, pack_buf);
-        	if( mqttPublish(&cli_mqtt, pack_buf, pack_bytes) < 0 ) {
+        	if( mqttPublish(mosq, pack_buf, pack_bytes) < 0 ) {
                 logWarn("mosquitto mqtt publish sample packet failure, save it in database now\n");
                 databasePushPacket(pack_buf, pack_bytes);
-                mqttTerm(&cli_mqtt);
+                mqttTerm(mosq);
             }
         }
         
         // mosquitto mqtt publish packet in database
         if( !databasePopPacket(pack_buf, sizeof(pack_buf), &pack_bytes) ) {
             logDebug("mosquitto mqtt publish database packet bytes[%d]: %s\n", pack_bytes, pack_buf);
-            if( mqttPublish(&cli_mqtt, pack_buf, pack_bytes) < 0 ) {
+            if( mqttPublish(mosq, pack_buf, pack_bytes) < 0 ) {
                 logError("mosquitto mqtt publish database packet failure\n");
-                mqttTerm(&cli_mqtt);
+                mqttTerm(mosq);
             }
             else {
                 logWarn("mosquitto mqtt publish database packet success, remove it from database now\n");
@@ -221,7 +213,7 @@ int main(int argc, char* argv[]) {
     }
     
  Cleanup:
-  	mqttTerm(&cli_mqtt);
+  	mosquitto_lib_cleanup();
     databaseTerm();
     unlink(DAEMON_PIDFILE);
     logTerm();
