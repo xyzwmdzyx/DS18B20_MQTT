@@ -71,6 +71,12 @@ int mqttTerm(struct mosquitto *mosq) {
 }
 
 
+/*	description:	mosquitto mqtt client connect to broker
+ *	 input args:	
+ *					$mosq  : mosquitto mqtt pointer
+ *					$conf  : client configurations
+ * return value:    <0: failure   0: success
+ */
 int mqttConnect(struct mosquitto *mosq, conf_t *conf) {
 
     int                 rv = 0;
@@ -112,6 +118,14 @@ int mqttConnect(struct mosquitto *mosq, conf_t *conf) {
     return 0;
 }
 
+
+/*	description:	mosquitto mqtt client publish data to broker
+ *	 input args:	
+ *					$mosq  : mosquitto mqtt pointer
+ *					$data  : packeted data(JSON)
+ *					$bytes : data total bytes
+ * return value:    <0: failure   0: success
+ */
 int mqttPublish(struct mosquitto *mosq, char *data, int bytes) {
 	
 	int			rv = 0;

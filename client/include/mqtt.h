@@ -35,25 +35,20 @@ extern int mqttTerm(struct mosquitto *mosq);
 
 /*	description:	mosquitto mqtt client connect to broker
  *	 input args:	
- *					$mq  : mosquitto mqtt context
+ *					$mosq  : mosquitto mqtt pointer
+ *					$conf  : client configurations
  * return value:    <0: failure   0: success
  */
-extern int mqttConnect(mqtt_ctx_t *mq);
-
-
-/*	description:	check if mosquitto mqtt client connect to broker or not
- *	 input args:	
- *					$mq  : mosquitto mqtt context
- * return value:    <0: failure   0: success
- */
-extern int mqttCheckConnect(mqtt_ctx_t *mq);
+extern int mqttConnect(struct mosquitto *mosq, conf_t *conf);
 
 
 /*	description:	mosquitto mqtt client publish data to broker
  *	 input args:	
- *					$mq  : mosquitto mqtt context
+ *					$mosq  : mosquitto mqtt pointer
+ *					$data  : packeted data(JSON)
+ *					$bytes : data total bytes
  * return value:    <0: failure   0: success
  */
-extern int mqttPublish(mqtt_ctx_t *mq, char *data, int bytes);
+extern int mqttPublish(struct mosquitto *mosq, char *data, int bytes);
 
 #endif
